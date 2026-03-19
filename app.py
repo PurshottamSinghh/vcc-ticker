@@ -103,5 +103,28 @@ def get_ticker_feed():
         "items": [{"text": msg} for msg in messages]
     })
 
+@app.route('/rise-rss-feed', methods=['GET'])
+def get_rss_feed():
+    # 1. Fetch the live data from our main function
+    data = get_ticker_feed().get_json()
+    rss_items = ""
+    
+    # 2. Build the XML items list
+    for item in data['items']:
+        # Wrap text in CDATA so the HTML (colors/gifs) renders correctly
+        rss_items += f"<item><title><![CDATA[{item['text']}]]></title></rss>"
+    
+    # 3. Assemble the full RSS channel
+    xml_output = f"""<?xml version="1.0" encoding="UTF-8" ?>
+    <rss version="2.0">
+    <channel>
+        <title>VCC Hype Feed</title>
+        <description>Live March Madness Hype for VCC</description>
+        {rss_items}
+    </channel>
+    </rss>"""
+    
+    return xml_output, 200, {'Content-Type': 'application/xml'}
+
 if __name__ == '__main__':
     app.run(port=5000)
