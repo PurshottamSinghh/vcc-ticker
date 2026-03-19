@@ -1,0 +1,107 @@
+import requests
+import random
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+# ==========================================
+# 🎨 CUSTOM 48px LED EFFECTS 
+# ==========================================
+
+def get_bouncing_ball_promo():
+    """Injects a 40px scaling HTML GIF of a bouncing basketball."""
+    ball_gif = "<img src='https://cdn.pixabay.com/animation/2023/10/10/13/26/13-26-44-315_512.gif' height='40' style='vertical-align: middle;' />"
+    return f"{ball_gif} WELCOME TO THE VENTURE COURTSIDE CLUB - ENJOY MARCH MADNESS! {ball_gif}"
+
+def get_sponsor_ad(sponsor_name="TOLEDO ATHLETICS"):
+    """Hijacks the ticker background with Midnight Blue and Gold text."""
+    # Using inline CSS to force the LED matrix to color-block
+    return f"<span style='background-color:#00205B; color:#FFD100; font-weight:bold; padding:0 30px;'> 👑 TONIGHT'S MADNESS IS BROUGHT TO YOU BY {sponsor_name} 👑 </span>"
+
+def get_kernel_panic_glitch(hype_message):
+    """Simulates a system crash before revealing a major game alert."""
+    # 1. The fake error
+    crash_header = "<span style='color:red; font-weight:bold;'> 🛑 FATAL_EXCEPTION: 0x000000F4 [OVERFLOW] </span>"
+    
+    # 2. The memory dump garbage data
+    glitch_chars = "01!<>-_\\/[]{}—=+*^?#XFA9"
+    garbage_data = "".join(random.choice(glitch_chars) for _ in range(45))
+    
+    # 3. The recovery and payload
+    recovery = "<span style='color:#00FF00;'> >> REBOOTING... >> OVERRIDE ACCEPTED >> </span>"
+    payload = f"<span style='background-color:red; color:white; font-weight:bold; padding:0 15px;'> 🚨 {hype_message} 🚨 </span>"
+    
+    return f"{crash_header}{garbage_data}{recovery}{payload}"
+
+# ==========================================
+# 🏀 LIVE DATA ENGINE (Whiparound Director)
+# ==========================================
+
+@app.route('/rise-ticker-feed', methods=['GET'])
+def get_ticker_feed():
+    # Fetch live scores from ESPN's public API
+    url = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard"
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        games_data = data.get('events', [])
+    except Exception as e:
+        return jsonify({"tickerName": "VCC Hype Feed", "items": [{"text": "⚠️ VCC TICKER: Establishing satellite uplink..."}]})
+
+    messages = []
+    
+    # Filter for actively playing games
+    active_games = [g for g in games_data if g['status']['type']['state'] == 'in']
+    
+    # If no games are currently being played
+    if not active_games:
+        messages.append("📺 WAITING FOR NEXT TIP-OFF | GRAB A DRINK! 🍻")
+    else:
+        # Process the top 4 active games
+        for idx, game in enumerate(active_games[:4]):
+            competitors = game['competitions'][0]['competitors']
+            home_team = next(c for c in competitors if c['homeAway'] == 'home')
+            away_team = next(c for c in competitors if c['homeAway'] == 'away')
+            
+            home_name = home_team['team']['abbreviation']
+            away_name = away_team['team']['abbreviation']
+            home_pts = int(home_team.get('score', 0))
+            away_pts = int(away_team.get('score', 0))
+            
+            clock = game['status']['displayClock']
+            period = game['status']['period']
+            time_str = f"{clock} {period}H" if period <= 2 else f"{clock} OT"
+            
+            diff = abs(home_pts - away_pts)
+            matchup = f"{away_name} vs {home_name}"
+            
+            # The Director Logic
+            if diff <= 5 and period >= 2:
+                # Close game in the 2nd half triggers the System Glitch!
+                raw_alert = f"CLUTCH ALERT: {matchup} | {diff} PT GAME ({away_pts}-{home_pts}) | {time_str}"
+                messages.append(get_kernel_panic_glitch(raw_alert))
+            elif diff >= 15:
+                messages.append(f"📺 {matchup} | BLOWOUT ({away_pts}-{home_pts}) | {time_str}")
+            else:
+                messages.append(f"📺 {matchup} | {away_pts}-{home_pts} | {time_str}")
+
+    # ==========================================
+    # 🎬 FINAL QUEUE ASSEMBLY
+    # ==========================================
+    
+    # Insert the Bouncing Ball Promo at the very front
+    messages.insert(0, get_bouncing_ball_promo())
+    
+    # Append the Sponsor Ad at the very end
+    messages.append(get_sponsor_ad("TOLEDO ATHLETICS"))
+
+    # Output the exact JSON schema Rise Ticker needs
+    return jsonify({
+        "tickerName": "VCC Hype Feed",
+        "items": [{"text": msg} for msg in messages]
+    })
+
+if __name__ == '__main__':
+    app.run(port=5000)
